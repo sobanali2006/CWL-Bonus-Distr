@@ -1,0 +1,22 @@
+{
+  "name": "cwl-performance-tracker",
+  "version": "1.1.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "keywords": [
+    "clash of clans",
+    "cwl",
+    "tracker"
+  ],
+  "author": "Soban Ali",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^29.1.1",
+    "electron-reloader": "^1.2.3",
+    "electron-builder": "^24.13.3"
+  }
+}

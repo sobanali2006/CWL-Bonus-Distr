@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://api-assets.clashofclans.com;">
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CWL Performance Tracker</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="content-wrapper">
+    <div id="parchmentContainer" class="parchment-container sidebar-collapsed">
+      
+      <aside id="sidebar" class="sidebar">
+        <nav class="sidebar-nav">
+          <div class="accordion-item">
+            <button class="accordion-header">
+              <img src="img/settingsicon.png" alt="Settings" class="accordion-icon">
+              <span class="accordion-title">Settings</span>
+              <img src="img/dropdownicon.png" alt="Expand" class="accordion-caret">
+            </button>
+            <div class="accordion-content">
+              <div class="setting-item">
+                <label for="decimalPlacesSelect">Decimal Places</label>
+                <select id="decimalPlacesSelect">
+                  <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+                </select>
+              </div>
+              <div class="setting-item">
+                <label for="bestAttacksSelect">Best Attacks Avg.</label>
+                <select id="bestAttacksSelect">
+                  <option value="5">5</option>
+                  <option value="6">6</option>
+                  <option value="7">7</option>
+                </select>
+              </div>
+              <div class="setting-item">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <img src="img/refresh.png" alt="" style="width: 16px; height: 16px; filter: invert(16%) sepia(18%) saturate(1211%) hue-rotate(316deg) brightness(94%) contrast(91%);">
+                  <label for="autoRefreshSelect">Auto Refresh</label>
+                </div>
+                <select id="autoRefreshSelect" style="width: 100px;"> 
+                  <option value="0">Off</option>
+                  <option value="0.5">30 sec</option>
+                  <option value="1">1 min</option>
+                  <option value="2">2 min</option>
+                  <option value="5">5 min</option>
+                </select>
+              </div>
+              
+              <!-- NEW: Two Toggle Switches -->
+              <div class="setting-item">
+                <label for="hideNonCwlCheckbox">Hide Non-CWL</label>
+                <label class="switch">
+                  <input type="checkbox" id="hideNonCwlCheckbox">
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+              <div class="setting-item">
+                <label for="hideBenchCheckbox">Hide Bench</label>
+                <label class="switch">
+                  <input type="checkbox" id="hideBenchCheckbox">
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="accordion-item">
+            <button class="accordion-header">
+              <img src="img/dataicon.png" alt="Data" class="accordion-icon">
+              <span class="accordion-title">Save / Load Data</span>
+              <img src="img/dropdownicon.png" alt="Expand" class="accordion-caret">
+            </button>
+            <div class="accordion-content">
+              <div class="data-actions">
+                <button id="exportDataBtn" class="data-action-btn">
+                  <img src="img/saveicon.png" alt="Save" class="btn-icon">
+                  <span>Save</span>
+                </button>
+                <button id="importDataBtn" class="data-action-btn">
+                  <img src="img/loadicon.png" alt="Load" class="btn-icon">
+                  <span>Load</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </nav>
+      </aside>
+
+      <div id="mainContent" class="main-content">
+        <header class="main-header">
+          <button id="sidebarToggleBtn" class="sidebar-toggle-btn" aria-label="Toggle Menu">
+            <img src="img/sidebaricon.png" alt="Menu">
+          </button>
+          <img src="img/coc-logo.png" alt="Clash of Clans Logo" class="header-logo">
+          <h1>Clan War League Performance Tracker</h1>
+          <p>Analyze your clan's performance. Enter your Clan Tag below to automatically fetch all CWL data.</p>
+        </header>
+
+        <section class="api-controls">
+          <div class="api-input-group">
+            <label for="clanTagInput">Clan Tag</label>
+            <input type="text" id="clanTagInput" placeholder="#2PP">
+            <button id="fetchDataBtn" class="btn btn-primary">Fetch War Data</button>
+          </div>
+        </section>
+
+        <!-- War Day Buttons (Above Title) -->
+        <div class="roster-controls-wrapper">
+          <div id="warDaySelectorContainer" class="war-day-selector"></div>
+        </div>
+
+        <br>
+
+        <div class="main-controls-container">
+          <div style="width: 100%; text-align: center;">
+            <h2 class="section-title">Clan Roster</h2>
+            <div id="clanIdentityDisplay" class="clan-identity hidden"></div>
+          </div>
+          
+          <!-- Hidden War Format Selector -->
+          <div class="war-format-selector">
+            <span class="war-format-label">War Format:</span>
+            <div class="radio-group">
+              <input type="radio" id="format15v15" name="warFormat" value="15" checked>
+              <label for="format15v15">15v15</label>
+            </div>
+            <div class="radio-group">
+              <input type="radio" id="format30v30" name="warFormat" value="30">
+              <label for="format30v30">30v30</label>
+            </div>
+          </div>
+        </div>
+        
+        <br>
+
+        <div id="emptyStateContainer" class="hidden">
+          <p>Roster is empty. Use the control panel above to fetch data for your clan.</p>
+        </div>
+
+        <div id="playerRosterContainer" class="table-container hidden">
+          <table id="playersTable" class="cwl-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>TownHall</th>
+                <th>Attack Data</th>
+                <th>Total Score</th>
+                <th>Wars</th>
+                <th data-tooltip="Average Performance Score">Average Score</th>
+                <th>Stars</th>
+                <th>Rank</th>
+              </tr>
+            </thead>
+            <tbody id="playersBody"></tbody>
+          </table>
+        </div>
+        
+        <div class="table-actions"></div>
+
+        <section id="rankingsSection" class="rankings-section hidden">
+          <h2 class="section-title">Final Rankings</h2>
+          <div class="cwl-status-controls">
+            <div class="checkbox-wrapper">
+              <input type="checkbox" id="cwlFinishedCheckbox">
+              <label for="cwlFinishedCheckbox">Is the CWL finished?</label>
+            </div>
+            <div id="warsWonContainer" class="hidden">
+              <div class="cwl-final-control-item">
+                <label for="leagueSelect">League:</label>
+                <select id="leagueSelect" aria-label="CWL League"></select>
+              </div>
+              <div class="cwl-final-control-item">
+                <label for="warsWonSelect">Wars Won:</label>
+                <select id="warsWonSelect" aria-label="Wars Won">
+                  <option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                  <option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option>
+                </select>
+              </div>
+              <span id="bonusCountDisplay"></span>
+            </div>
+          </div>
+          <div class="table-container">
+              <table id="rankingsTable" class="cwl-table">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Name</th>
+                    <th>Wars</th>
+                    <th data-tooltip="Average Performance Score">Average Score</th>
+                    <th>Total Stars</th>
+                    <th id="bonusHeaderTh">Bonus Awarded To</th>
+                  </tr>
+                </thead>
+                <tbody id="rankingsBody"></tbody>
+              </table>
+          </div>
+        </section>
+
+        <footer class="app-footer">
+          <button id="resetDataBtn" class="btn btn-danger">Reset All</button>
+        </footer>
+      </div>
+    </div>
+  </main>
+
+  <div id="confirmationModal" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle" class="modal-bg hidden">
+    <div class="modal-card">
+      <h2 id="confirmModalTitle" class="section-title">Confirm Action</h2>
+      <p id="confirmModalMessage" class="confirm-message">Are you sure you want to proceed? This action cannot be undone.</p>
+      <div class="modal-actions">
+        <button id="confirmBtn" class="btn btn-danger">Confirm</button>
+        <button id="cancelBtn" class="btn btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="tooltip" class="tooltip" role="tooltip"></div>
+  
+  <script src="renderer.js" defer type="module"></script>
+</body>
+</html>
