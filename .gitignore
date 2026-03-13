@@ -1,0 +1,20 @@
+#WORK ON THIS LATER AS THERE HAS TO BE STH THAT MUST BE ADDED HERE
+# Dependencies
+node_modules/
+
+# Environment variables (SECRETS!)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build output
+dist/
+build/
+
+# IDE files
+.vscode/
+.DS_Store
+
+
