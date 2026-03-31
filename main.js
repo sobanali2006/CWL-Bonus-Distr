@@ -25,6 +25,7 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
+const http = require('http');
 const pkg = require('./package.json');
 
 // ── API TOKEN LOAD ────────────────────────────────────────────────────────────
@@ -33,9 +34,11 @@ const pkg = require('./package.json');
 // If the file is missing or malformed, apiToken stays null and the IPC handler
 // will return a meaningful error to the renderer rather than crashing.
 let apiToken;
+let proxyUrl = null;
 try {
     const apiConfig = JSON.parse(fs.readFileSync(path.join(__dirname, 'api_config.json')));
     apiToken = apiConfig.apiToken;
+    proxyUrl = apiConfig.proxyUrl || null;
 } catch (error) {
     console.error("CRITICAL: Could not read api_config.json.");
     apiToken = null;
@@ -176,16 +179,77 @@ ipcMain.handle('fetch-clan-data', async (event, clanTag) => {
         });
     };
 
+    /**
+     * FUNCTION: apiRequestViaProxy
+     * PURPOSE: Makes an HTTP request to the designated proxy server.
+     *          The proxy server transparently forwards the request to CoC.
+     */
+    const apiRequestViaProxy = (pUrl, cocPath) => {
+        return new Promise((resolve, reject) => {
+            const cleanBase = pUrl.replace(/\/$/, '');
+            const url = new URL(cleanBase + '/coc-proxy' + cocPath);
+            
+            const req = http.request({
+                hostname: url.hostname,
+                port: url.port,
+                path: url.pathname + url.search,
+                method: 'GET'
+            }, (res) => {
+                let data = '';
+                res.on('data', (chunk) => data += chunk);
+                res.on('end', () => {
+                    if (res.statusCode >= 200 && res.statusCode < 300) {
+                        try { resolve(JSON.parse(data)); } catch (e) { reject({ statusCode: 500, message: "Failed to parse proxy response." }); }
+                    } else {
+                        try {
+                            const errorJson = JSON.parse(data);
+                            reject({ statusCode: res.statusCode, message: errorJson.error || errorJson.reason || JSON.stringify(errorJson) });
+                        } catch (e) {
+                            reject({ statusCode: res.statusCode, message: `Proxy returned unparseable error (Status Code: ${res.statusCode})` });
+                        }
+                    }
+                });
+            });
+            req.on('error', (error) => reject({ statusCode: 502, message: error.message }));
+            req.end();
+        });
+    };
+
+    /**
+     * FUNCTION: fetchData
+     * PURPOSE: Attempts to fetch data using the Proxy if configured.
+     *          Provides a silent fallback (Option A) to the local apiToken 
+     *          if the proxy server is unreachable or offline. 
+     *          Valid CoC API errors (404, 403) bubble up normally.
+     */
+    const fetchData = async (cocPath) => {
+        if (proxyUrl) {
+            try {
+                return await apiRequestViaProxy(proxyUrl, cocPath);
+            } catch (err) {
+                // Fallback to local token if proxy fails entirely or returns 502 (Bad Gateway/Upstream failure)
+                if (err.statusCode === 502 || err.statusCode === 500) {
+                    console.warn(`Proxy failed for ${cocPath}. Falling back to local token. Error:`, err.message);
+                } else {
+                    throw err; // It's a real CoC API error (e.g. 404 Not Found), bubble it up
+                }
+            }
+        }
+        
+        // Direct to CoC API (fallback or no proxy configured)
+        return await apiRequest({
+            hostname: 'api.clashofclans.com',
+            path: cocPath,
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${apiToken}` }
+        });
+    };
+
     // ── API CALL 1: CLAN INFO ───────────────────────────────────────────────
     // This call is mandatory — if it fails, we have no player roster at all.
     let clanInfo;
     try {
-        clanInfo = await apiRequest({
-            hostname: 'api.clashofclans.com',
-            path: `/v1/clans/%23${sanitizedTag}`, // %23 = URL-encoded #
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${apiToken}` }
-        });
+        clanInfo = await fetchData(`/v1/clans/%23${sanitizedTag}`); // %23 = URL-encoded #
     } catch (err) {
         // Map common status codes to user-friendly messages
         let errorMessage = "An unknown error occurred.";
@@ -206,12 +270,7 @@ ipcMain.handle('fetch-clan-data', async (event, clanTag) => {
 
     try {
         // ── API CALL 2: CWL LEAGUE GROUP ─────────────────────────────────
-        cwlGroupInfo = await apiRequest({
-            hostname: 'api.clashofclans.com',
-            path: `/v1/clans/%23${sanitizedTag}/currentwar/leaguegroup`,
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${apiToken}` }
-        });
+        cwlGroupInfo = await fetchData(`/v1/clans/%23${sanitizedTag}/currentwar/leaguegroup`);
 
         // Extract the master CWL roster for our clan.
         // cwlGroupInfo.clans lists all 8 clans in the CWL group.
@@ -240,12 +299,9 @@ ipcMain.handle('fetch-clan-data', async (event, clanTag) => {
                 }
 
                 // Fetch all war tags for this round in parallel
-                const roundWarDetailsPromises = validWarTags.map(warTag => apiRequest({
-                    hostname: 'api.clashofclans.com',
-                    path: `/v1/clanwarleagues/wars/%23${warTag.substring(1)}`, // strip leading #
-                    method: 'GET',
-                    headers: { 'Authorization': `Bearer ${apiToken}` }
-                }));
+                const roundWarDetailsPromises = validWarTags.map(warTag => 
+                    fetchData(`/v1/clanwarleagues/wars/%23${warTag.substring(1)}`) // strip leading #
+                );
 
                 const roundWarDetails = await Promise.all(roundWarDetailsPromises);
 

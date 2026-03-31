@@ -128,6 +128,27 @@ round. This is handled by the outer try/catch which falls back to cwlError.
 
 ---
 
+## ADR-007 — Use Render.com Free Tier for API Proxy
+
+**Date:** 2026-04-01
+**Status:** Active
+
+**Decision:** Route all CoC API requests through a Node.js transparent proxy hosted on Render's Free Web Service tier.
+
+**Context:** The CoC API requires tokens to be IP-whitelisted. The app is running from a home network with a dynamic IP that changes periodically, instantly breaking the app's API connection and forcing manual token recreation. The user requires a cloud proxy to whitelist an IP permanently, but refuses to provide credit card information for free-tier identity verification (ruling out AWS, GCP, Azure, and Oracle).
+
+**Alternatives considered:**
+- Option A — Big-Name Cloud Providers (AWS/GCP/Oracle). Rejected because they mandate a credit card on file, and some (AWS/GCP) now charge for external IPv4 addresses even on free tiers.
+- Option B — Serverless Functions (Cloudflare). Rejected because egress IPs rotate constantly across huge datacenters, making whitelisting impossible.
+
+**Reasoning:** Render offers a completely free Node.js hosting tier using only a GitHub login. More importantly, Render routes all outbound traffic for a given region through a tiny, static pool of NAT Gateway IP addresses (usually exactly 3 IPs). By whitelisting all 3 IPs simultaneously on the CoC Developer Portal, the token works reliably without a dedicated server.
+
+**Consequences:** 
+- The Electron app uses the proxy URL to bounce requests.
+- Render spins down the free instance after 15 minutes of inactivity. The app will experience a ~45 second "Cold Start" delay on the first fetch of a session. Subsquent tasks execute instantly.
+
+---
+
 ## [TEMPLATE FOR NEW ADRs]
 
 ## ADR-00X — Title

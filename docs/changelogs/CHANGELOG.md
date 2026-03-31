@@ -6,6 +6,15 @@ Versions follow [Semantic Versioning](https://semver.org).
 
 ---
 
+## [1.2.1] — 2026-04-01
+
+### Added
+- Render.com No-CC Free Tier Proxy Server implementation using NAT Gateway IPv4 aggregation
+- Native fallback logic silently shifting 45-second proxy Cold Start failures to local API tokens
+- Deep Dive architectural documentation resolving dynamic IPs without credit cards
+
+---
+
 ## [1.1.0] — 2026-03-30
 
 ### Added
