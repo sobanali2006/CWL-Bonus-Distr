@@ -16,5 +16,6 @@ build/
 # IDE files
 .vscode/
 .DS_Store
+api_config.json
 
 

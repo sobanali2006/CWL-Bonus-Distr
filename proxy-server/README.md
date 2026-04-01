@@ -1,89 +1,120 @@
-# CWL Proxy Server — Render.com Setup Guide
+# CWL Proxy Server — Oracle Cloud VPS Setup Guide
 
-Step-by-step instructions to deploy the proxy on Render's free tier. 
-**No credit card required.** Total time: ~5 minutes.
-
----
-
-## Part 1 — Push Your Code to GitHub
-
-Render hosts your code directly from a Git repository. 
-
-1. Create a free GitHub account if you don't have one.
-2. Upload this entire project (or just the `proxy-server` folder) to a new GitHub repository.
-3. Make sure `proxy-server/server.js` and `proxy-server/package.json` are in the repo.
+This guide provides step-by-step instructions to deploy the CoC API proxy on an **Oracle Cloud Free Tier VPS** (running Ubuntu). 
+Unlike Render, an Oracle VM gives you a **dedicated static IP address**, which is perfectly compatible with the Clash of Clans API whitelisting requirements.
 
 ---
 
-## Part 2 — Deploy on Render
+## Part 1 — Connecting & Installing Node.js
 
-1. Go to [Render.com](https://render.com/) and sign up. (You can use Google Auth or GitHub).
-2. Once logged in, click **New** and select **Web Service**.
-3. Under "Connect a repository":
-   - If you signed up with GitHub, your repos will appear automatically.
-   - If you signed up with Google Auth, click **Connect GitHub** first, authorize Render to view your repositories, then select the repo you created in Part 1.
-4. Fill out the configuration:
-   - **Name:** `cwl-proxy` (or anything)
-   - **Region:** **US West (Oregon)** is recommended.
-   - **Branch:** `main` (or whatever branch you use)
-   - **Root Directory:** `proxy-server` (Crucial! Do not leave blank if the server isn't at the root)
-   - **Runtime:** `Node`
-   - **Build Command:** `npm install`
-   - **Start Command:** `node server.js`
-   - **Instance Type:** `Free`
-5. Click **Advanced**, then **Add Environment Variable**:
-   - **Key:** `COC_API_TOKEN`
-   - **Value:** Paste a fresh CoC API Token here (but don't generate the token yet, we need the IPs first — just put `placeholder` for now)
-6. Click **Create Web Service**. 
-
-Wait ~2 minutes for the initial build and deployment to say **"Live"**. 
-Copy the URL it gives you (e.g., `https://cwl-proxy-xyz.onrender.com`).
+1. **Get your VM's Public IP** from the Oracle Cloud Console.
+2. **SSH into your VM**. Depending on your OS, use a terminal or PuTTY:
+   ```bash
+   ssh -i path/to/your/private_key ubuntu@YOUR_ORACLE_IP
+   ```
+3. Once logged in, **install Node.js** using NVM (Node Version Manager):
+   ```bash
+   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+   source ~/.bashrc
+   nvm install 20
+   ```
 
 ---
 
-## Part 3 — Whitelist the Render NAT IPs
+## Part 2 — Clone the Repository
 
-Render free tier uses a specific set of regional gateway IPs. You must add **all** of these IPs to your CoC API token so that it works no matter which server routes your request.
+1. **Clone your project** from GitHub into the Oracle VM:
+   ```bash
+   git clone https://github.com/sobanali2006/CWL-Bonus-Distr.git
+   ```
+   *(If your repository is private, you will need to authenticate using a GitHub Personal Access Token).*
+2. Navigate to the proxy directory:
+   ```bash
+   cd CWL-Bonus-Distr/proxy-server
+   ```
+3. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-If you chose **US West (Oregon)** in Step 2, go to the [CoC Developer Portal](https://developer.clashofclans.com/) and create a new key. Add these three exact IPs:
+---
 
+## Part 3 — Configure the Environment
+
+The proxy needs a Clash of Clans API Token to authenticate requests.
+
+1. Open the `.bashrc` file to set your token permanently:
+   ```bash
+   nano ~/.bashrc
+   ```
+2. Scroll to the very bottom and add this line, replacing `your_token_here` with a **placeholder** (we will get the real token in Part 5):
+   ```bash
+   export COC_API_TOKEN="your_token_here"
+   ```
+3. Save and exit (Press `Ctrl+O`, `Enter`, then `Ctrl+X`).
+4. Apply the changes:
+   ```bash
+   source ~/.bashrc
+   ```
+
+---
+
+## Part 4 — Open Firewall Rules (CRITICAL)
+
+By default, Oracle Cloud blocks all incoming traffic. You must explicitly open Port 3000 so your app can reach the proxy.
+
+### A. Oracle Cloud Console (VCN)
+1. In Oracle Cloud, go to **Networking** → **Virtual Cloud Networks**.
+2. Click your VCN → **Security List** → **Default Security List**.
+3. Click **Add Ingress Rules**.
+   - **Source CIDR:** `0.0.0.0/0`
+   - **IP Protocol:** TCP
+   - **Destination Port Range:** `3000`
+4. Click **Add Ingress Rules**.
+
+### B. Ubuntu Host Firewall (iptables)
+Run these commands in your SSH terminal to open the port on the machine itself:
+```bash
+sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 3000 -j ACCEPT
+sudo netfilter-persistent save
 ```
-216.24.57.253
-216.24.57.252
-216.24.57.234
-```
-
-*(If you chose Frankfurt, check Render's official documentation for their Frankfurt NAT IPs).*
-
-1. Save the key in the CoC portal and copy the generated Token.
-2. Go back to your Render dashboard → Your Web Service → **Environment**.
-3. Edit the `COC_API_TOKEN` variable you made in Step 2. Paste the real token. Save changes.
-4. Render will automatically redeploy the service with the new token.
 
 ---
 
-## Part 4 — Configure Your Electron App
+## Part 5 — Generate CoC Token & Start Server
 
-Update your local `api_config.json`:
+1. Go to the [CoC Developer Portal](https://developer.clashofclans.com/).
+2. Create a new key and whitelist your **Oracle VM's Public IP address**.
+3. Copy the generated Token.
+4. Back in your SSH terminal, update your `.bashrc` file again, replacing the placeholder with the real token you just copied. 
+   ```bash
+   nano ~/.bashrc
+   # update the token, save, exit
+   source ~/.bashrc
+   ```
+
+### Start the Proxy Permanently
+We use `pm2` so the server stays running even when you close the SSH window.
+```bash
+npm install -g pm2
+pm2 start server.js --name "cwl-proxy"
+```
+
+To verify it's working, visit in your browser on your computer:
+`http://YOUR_ORACLE_IP:3000/health`
+If you see `{"status":"ok"}`, your proxy is perfectly set up!
+
+---
+
+## Part 6 — Configure Your Electron App
+
+Update your **local** `api_config.json` on your Windows machine to point to your new Oracle server.
 
 ```json
 {
   "apiToken": "any_valid_token_for_fallback",
-  "proxyUrl": "https://cwl-proxy-xyz.onrender.com"
+  "proxyUrl": "http://YOUR_ORACLE_IP:3000"
 }
 ```
 
-Start your Electron app. When you fetch CWL data, it will now bounce through Render!
-
----
-
-## ⚠️ Important Note: The 15-Minute Sleep (Cold Starts)
-
-Render's free tier puts your proxy server to sleep if it receives no requests for 15 minutes. 
-
-**What this means for you:**
-- The **first time** you click "Fetch" in your app every day, the proxy has to wake up. This takes roughly **30 to 45 seconds**. The app might look frozen, just wait.
-- **Every fetch after that** will be instant because the server is awake.
-- If you don't use the app for 15 minutes, the next fetch will have the 45-second delay again.
-
-*(To remove the delay permanently, you'd eventually move to a paid "big name" cloud provider like AWS/GCP, but this $0 solution works perfectly for personal use).*
+Start your Electron app. When you click "Fetch", it will seamlessly route through your dedicated Oracle IP!

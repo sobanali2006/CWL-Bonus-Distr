@@ -189,7 +189,10 @@ ipcMain.handle('fetch-clan-data', async (event, clanTag) => {
             const cleanBase = pUrl.replace(/\/$/, '');
             const url = new URL(cleanBase + '/coc-proxy' + cocPath);
             
-            const req = http.request({
+            // Choose between http and https modules based on the protocol
+            const client = url.protocol === 'https:' ? https : http;
+            
+            const req = client.request({
                 hostname: url.hostname,
                 port: url.port,
                 path: url.pathname + url.search,
