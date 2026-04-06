@@ -34,9 +34,15 @@ A GCE VM gives you a **dedicated static IP address**, which is perfectly compati
    | **Name** | `cwl-proxy` |
    | **Region** | `us-central1` (Iowa) — or `us-west1` / `us-east1` |
    | **Zone** | Any available zone (e.g., `us-central1-a`) |
+   | **Provisioning model** | **Standard** (Do NOT use Spot/Preemptible) |
    | **Machine type** | `e2-micro` (0.25–2 vCPU, 1 GB RAM) — **Always Free eligible** |
    | **Boot disk** | Ubuntu 22.04 LTS, 30 GB Standard persistent disk |
    | **Firewall** | ✅ Allow HTTP traffic, ✅ Allow HTTPS traffic |
+
+### 🛠️ UI Navigation Tips (If you can't see the options below):
+*   **Provisioning Model**: This is often the first thing under "Machine configuration". Choose **Standard**.
+*   **Boot Disk**: Scroll down past the machine settings. Look for a section titled **"Boot disk"**. Click the **CHANGE** button to select **Ubuntu 22.04 LTS** and **30 GB Standard Persistent Disk**.
+*   **Firewall**: Scroll near the very bottom of the page. Look for the **"Firewall"** section and check both **"Allow HTTP traffic"** and **"Allow HTTPS traffic"**. (If it's still missing, click "Networking, disks, security..." at the bottom to expand more options).
 
 4. Click **Create**. Wait for the VM to start (~30 seconds).
 5. Note the **External IP** shown in the VM instances list — this is your static IP.
@@ -52,8 +58,12 @@ A GCE VM gives you a **dedicated static IP address**, which is perfectly compati
 1. In the VM instances list, click the **SSH** button next to your VM. This opens a browser-based terminal.
    *(Alternatively, use your own terminal: `gcloud compute ssh cwl-proxy --zone=us-central1-a`)*
 
-2. Once connected, **install Node.js** using NVM (Node Version Manager):
+2. Once connected, **install basic utilities and Node.js**:
    ```bash
+   # 1. Install Git and Nano (text editor)
+   sudo apt-get update && sudo apt-get install git nano -y
+
+   # 2. Install Node.js using NVM (Node Version Manager)
    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
    source ~/.bashrc
    nvm install 20
@@ -61,6 +71,7 @@ A GCE VM gives you a **dedicated static IP address**, which is perfectly compati
 
 3. Verify installation:
    ```bash
+   git --version    # Should print git version 2.x.x
    node --version   # Should print v20.x.x
    npm --version    # Should print 10.x.x
    ```
@@ -73,7 +84,12 @@ A GCE VM gives you a **dedicated static IP address**, which is perfectly compati
    ```bash
    git clone https://github.com/sobanali2006/CWL-Bonus-Distr.git
    ```
-   *(If your repository is private, you will need to authenticate using a GitHub Personal Access Token).*
+   > 🔑 **Private Repository Instructions:**
+   > 1. When prompted for **Username**, enter your GitHub username.
+   > 2. When prompted for **Password**, paste a [GitHub Personal Access Token (PAT)](https://github.com/settings/tokens). 
+   >    *Note: Your regular GitHub password will NOT work for cloning.*
+   > 3. To save your credentials so you don't have to paste them every time:
+   >    `git config --global credential.helper store`
 
 2. Navigate to the proxy directory:
    ```bash
@@ -109,29 +125,25 @@ The proxy needs a Clash of Clans API Token to authenticate requests.
 
 ## Part 6 — Open Firewall Rules (CRITICAL)
 
-GCE's default firewall allows HTTP/HTTPS but **not custom ports**. You must open Port 3000.
+Modern Google Cloud uses **Firewall Policies** to control traffic. You must create a rule to allow Port 3000.
 
-### Option A — GCP Console (Recommended)
-1. Go to **VPC network** → **Firewall**.
-2. Click **Create Firewall Rule**.
+1. Go to **VPC network** → **Firewall policies**.
+2. Click **Create Firewall Policy**.
+   - **Name:** `allow-proxy-policy`
+   - **Type:** VPC policy
+   - **Deployment scope:** Global
+3. Once created, click on the policy name to **Add a Rule**:
 
-   | Setting | Value |
-   |---|---|
-   | **Name** | `allow-proxy-3000` |
-   | **Direction** | Ingress |
-   | **Targets** | All instances in the network |
-   | **Source IP ranges** | `0.0.0.0/0` |
-   | **Protocols and ports** | TCP: `3000` |
+| Setting | Value |
+|---|---|
+| **Priority** | `1000` |
+| **Direction** | Ingress |
+| **Action** | Allow |
+| **Target** | Apply to all |
+| **Source IPv4 ranges** | `0.0.0.0/0` |
+| **Protocols and ports** | Specified protocols → TCP → `3000` |
 
-3. Click **Create**.
-
-### Option B — gcloud CLI (from the SSH terminal)
-```bash
-gcloud compute firewall-rules create allow-proxy-3000 \
-  --allow tcp:3000 \
-  --source-ranges 0.0.0.0/0 \
-  --description "Allow inbound traffic to CWL proxy on port 3000"
-```
+4. **CRITICAL:** Click **Create**, then go to the **Associations** tab and click **Add Association**. Select your **`default`** network. Without this, the rule will not apply to your VM.
 
 ---
 
