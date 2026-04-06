@@ -6,6 +6,18 @@ Versions follow [Semantic Versioning](https://semver.org).
 
 ---
 
+## [1.2.2] — 2026-04-06
+
+### Changed
+- Migrated proxy server deployment from Render.com / Oracle Cloud to **Google Cloud Platform** (GCE `e2-micro` Always Free Tier VM)
+- Superseded ADR-007 (Render.com) with ADR-008 (GCP)
+- Rewrote `proxy-server/README.md` with full GCP setup guide
+- Rewrote `docs/deep-dives/public-server-architecture.md` for GCP architecture
+- Updated project roadmap — public server now listed as implemented (v1.2.x)
+- Updated `docs/features/public-server/design.md` with chosen platform
+
+---
+
 ## [1.2.1] — 2026-04-01
 
 ### Added

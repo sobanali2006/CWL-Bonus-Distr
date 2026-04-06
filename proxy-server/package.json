@@ -1,7 +1,7 @@
 {
   "name": "cwl-proxy-server",
   "version": "1.0.0",
-  "description": "Lightweight CoC API proxy for the CWL Performance Tracker. Deployed on Oracle Cloud Free Tier VPS to provide a static IP for API token whitelisting.",
+  "description": "Lightweight CoC API proxy for the CWL Performance Tracker. Deployed on Google Cloud Platform Free Tier VM (e2-micro) to provide a static IP for API token whitelisting.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

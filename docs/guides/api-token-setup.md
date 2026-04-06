@@ -49,6 +49,9 @@ The API will return a 403 (Access Denied) error. You need to:
 3. Create a new key with your new IP
 4. Update `api_config.json`
 
-This is why the public server feature is a planned improvement — it routes API calls
-through a server with a static IP so users don't need their own tokens.
-See `docs/features/public-server/design.md`.
+> 💡 **The proxy server solves this problem.** If the GCP proxy is deployed and
+> configured in `api_config.json` (see `proxy-server/README.md`), your Electron
+> app routes requests through the proxy's static IP instead of your home IP.
+> You only need to whitelist the proxy's IP once — it never changes.
+>
+> See `docs/features/public-server/design.md` and `docs/deep-dives/public-server-architecture.md`.

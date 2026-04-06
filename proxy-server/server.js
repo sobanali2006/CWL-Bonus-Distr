@@ -1,6 +1,6 @@
 /**
  * FILE: server.js
- * PROCESS: Standalone Node.js server (runs on Oracle Cloud VPS, NOT inside Electron)
+ * PROCESS: Standalone Node.js server (runs on Google Cloud Platform VM, NOT inside Electron)
  * ROLE: Transparent API proxy — forwards any CoC API request from the Electron
  *       app to api.clashofclans.com using the server's whitelisted static IP.
  *       The Electron app never needs its own API token once this proxy is active.
@@ -21,10 +21,10 @@
  *
  * DOCS:
  *   - docs/deep-dives/public-server-architecture.md
- *   - docs/architecture/decisions.md → ADR-007
+ *   - docs/architecture/decisions.md → ADR-008
  *
  * DEPLOYMENT:
- *   - See proxy-server/README.md for full Oracle Cloud setup instructions
+ *   - See proxy-server/README.md for full GCP setup instructions
  */
 
 const express = require('express');
@@ -100,7 +100,7 @@ app.get('/coc-proxy/*', (req, res) => {
 
         // CRITICAL: .pipe() streams the CoC response directly to the Electron client.
         // This avoids buffering the entire JSON body in server memory — important
-        // for the small Oracle Free Tier VM (1GB RAM). Data flows through as a
+        // for the small GCP Free Tier VM (1GB RAM). Data flows through as a
         // stream: CoC → server → Electron app.
         proxyRes.pipe(res);
     });

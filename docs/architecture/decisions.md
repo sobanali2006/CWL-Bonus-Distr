@@ -131,7 +131,7 @@ round. This is handled by the outer try/catch which falls back to cwlError.
 ## ADR-007 — Use Render.com Free Tier for API Proxy
 
 **Date:** 2026-04-01
-**Status:** Active
+**Status:** Superseded by ADR-008
 
 **Decision:** Route all CoC API requests through a Node.js transparent proxy hosted on Render's Free Web Service tier.
 
@@ -146,6 +146,33 @@ round. This is handled by the outer try/catch which falls back to cwlError.
 **Consequences:** 
 - The Electron app uses the proxy URL to bounce requests.
 - Render spins down the free instance after 15 minutes of inactivity. The app will experience a ~45 second "Cold Start" delay on the first fetch of a session. Subsquent tasks execute instantly.
+
+**Why Superseded:** Render's shared NAT Gateway IPs were unreliable — CoC API returned persistent `403 Access Denied` errors, likely because Supercell blocks known PaaS/cloud IP ranges. Oracle Cloud was attempted next but also failed. Replaced by ADR-008 (GCP).
+
+---
+
+## ADR-008 — Use Google Cloud Platform Free Tier VM for API Proxy
+
+**Date:** 2026-04-06
+**Status:** Active
+
+**Decision:** Deploy the CoC API proxy on a Google Cloud Platform Compute Engine `e2-micro` VM with a reserved static external IP address.
+
+**Context:** After Render.com (ADR-007) failed due to shared NAT Gateway IP blocking, and Oracle Cloud also failed to provide a working environment, a third hosting platform was needed. The user is now willing to provide a credit card for identity verification, as long as there is no automatic billing.
+
+**Alternatives considered:**
+- Option A — Render.com. Rejected (ADR-007 superseded). Shared NAT IPs blocked by CoC API.
+- Option B — Oracle Cloud Free Tier VPS. Rejected — setup/connectivity issues prevented successful deployment.
+- Option C — GCP Cloud Run. Rejected for this use case because Cloud Run uses dynamic outbound IPs. A static IP requires VPC + Cloud NAT (~$32/month), defeating the free-tier goal.
+- Option D — Cloudflare Workers. Rejected — egress IPs rotate across massive datacenter pools, making whitelisting impossible.
+
+**Reasoning:** GCP's Always Free Tier includes one `e2-micro` Compute Engine instance (1 shared vCPU, 1 GB RAM) in `us-west1`, `us-central1`, or `us-east1` — permanently free, not a trial. This gives a dedicated VM with a reservable static external IP, identical to the Oracle approach but on a more reliable platform. GCP requires a credit card for signup but does NOT auto-charge when credits expire — resources simply stop. With ~30-40 requests/month, usage is well within free limits.
+
+**Consequences:**
+- The VM is always on — no cold starts (unlike Render).
+- A static IP is reserved for free (as long as it's attached to a running VM).
+- The user must manage the VM (updates, pm2, SSH) — but this is minimal overhead for a single-purpose proxy.
+- If the user stops the VM, the static IP becomes billable ($0.004/hour). The IP should be released if the VM is stopped long-term.
 
 ---
 

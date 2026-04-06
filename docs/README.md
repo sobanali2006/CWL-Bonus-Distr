@@ -17,13 +17,14 @@ Single source of truth for all project documentation.
 | Understand the API integration | [API Integration](features/api-integration/implementation.md) |
 | See what changed per version | [Changelogs](changelogs/) |
 | Plan the public server feature | [Public Server Design](features/public-server/design.md) |
+| Deploy the proxy server (GCP) | [Proxy Server README](../proxy-server/README.md) |
 
 ---
 
 ## Project Roadmap
 
 ```
-v1.1.0 — Current
+v1.1.0
   ✅ Live API data fetching (CoC REST API)
   ✅ Custom weighted performance scoring algorithm
   ✅ Automated wars won + bonus count calculation
@@ -36,13 +37,15 @@ v1.1.0 — Current
   ✅ Traffic light attack status indicators
   ✅ Documentation infrastructure
 
-v1.2.0 — Next (April 2026 CWL Season)
+v1.2.x — Current
+  ✅ Public proxy server (GCP e2-micro VM — bypasses dynamic IP restriction)
+  ✅ Silent fallback to local API token when proxy is unavailable
+  ✅ Deep-dive architectural documentation for proxy deployment
   ☐ TH18 scoring calibration review
   ☐ Performance improvements if identified
   ☐ Bug fixes from live CWL usage
 
 Future
-  ☐ Public server (bypass IP-whitelisted API key restriction)
   ☐ Offline mode / service worker
   ☐ Multi-clan support
 ```

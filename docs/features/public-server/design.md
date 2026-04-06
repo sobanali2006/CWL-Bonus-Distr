@@ -1,7 +1,7 @@
 # Feature Design — Public Server
 
-**Status:** Planned (future)
-**Blocker:** IP-whitelisted API key requirement
+**Status:** Implemented (v1.2.2 — GCP)
+**ADR:** ADR-008
 
 ---
 
@@ -25,49 +25,69 @@ through a server with a static, whitelisted IP.
 
 ---
 
-## Architecture Options
+## Architecture Options Evaluated
 
-### Option A — Simple Proxy Server
-A lightweight Node.js/Express server that:
-- Accepts clan tag from the client
-- Makes the CoC API call using a server-side token
-- Returns the response
+### Option A — Simple Proxy Server on PaaS (Render.com) ❌
+A lightweight Node.js/Express server hosted on Render's free tier.
 
-**Pros:** Simple, cheap to host (Render free tier, Railway, etc.)
-**Cons:** Server goes down = app breaks for all users. Rate limiting risks.
+**Pros:** Free, no credit card, simple deployment.
+**Cons:** Shared NAT Gateway IPs blocked by CoC API (`403 Access Denied`). 45-second cold starts.
+**Status:** Rejected — ADR-007 superseded.
 
-### Option B — Serverless Functions (Recommended)
-Host API proxy functions on Vercel/Netlify/Cloudflare Workers:
-- No server to manage
-- Auto-scales
-- Free tier likely sufficient
-- Each function = one API endpoint
+### Option B — Serverless Functions (Cloudflare Workers) ❌
+Host API proxy functions on Cloudflare Workers.
 
-**Implementation:**
+**Pros:** No server to manage, auto-scales, free tier.
+**Cons:** Egress IPs rotate constantly across huge datacenters — whitelisting is impossible.
+**Status:** Rejected.
+
+### Option C — Dedicated VPS (Oracle Cloud Free Tier) ❌
+A dedicated VM with a true static IP on Oracle's Always Free tier.
+
+**Pros:** Dedicated static IP, always-on, free tier.
+**Cons:** Setup and connectivity issues prevented successful deployment.
+**Status:** Rejected.
+
+### Option D — Dedicated VM (GCP Compute Engine `e2-micro`) ✅ Chosen
+A GCE `e2-micro` VM on GCP's Always Free Tier with a reserved static IP.
+
+**Pros:** Dedicated static IP, always-on (no cold starts), 1 GB RAM, free forever in eligible regions.
+**Cons:** Requires credit card for signup (identity verification only — no auto-charges). Minimal VM management (pm2, SSH).
+**Status:** Implemented — ADR-008 active.
+
+---
+
+## Chosen Implementation
+
 ```
-User App → POST https://your-worker.workers.dev/api/clan
+Electron App → HTTP GET http://GCE_IP:3000/coc-proxy/v1/clans/...
   ↓
-Cloudflare Worker → CoC API (using server-stored token)
+GCE VM (proxy-server/server.js) → HTTPS GET api.clashofclans.com/v1/clans/...
   ↓
-Response → User App
+Response piped back → Electron App
 ```
 
-### Option C — Supabase Edge Functions
-If Supabase is ever added for other features, Edge Functions could host the proxy.
+- The proxy is a single `server.js` file using Express + Node's built-in `https` module.
+- The CoC API token is stored as an environment variable on the VM — never in code.
+- The Electron app has a silent fallback: if the proxy is unreachable (502/500), it falls back to the local `apiToken` in `api_config.json`.
+
+See `proxy-server/README.md` for deployment instructions.
+See `docs/deep-dives/public-server-architecture.md` for the full technical deep dive.
 
 ---
 
 ## Security Considerations
 
-- The server-side API token must be in environment variables, never in code
-- Rate limiting must be implemented to prevent abuse
-- Consider requiring a simple passphrase to prevent public misuse
+- The server-side API token is in environment variables, never in code
+- The proxy is single-purpose — only forwards GET requests to `api.clashofclans.com`
+- Rate limiting is unnecessary for a single-user proxy (~30-40 requests/month)
+- No authentication needed — the proxy is personal, not public-facing
 
 ---
 
-## Open Questions
+## Resolved Questions
 
-1. Which hosting platform? (Cloudflare Workers recommended for free tier + performance)
-2. Rate limiting strategy? (Per-IP? Per clan tag? Per session?)
-3. Should the Electron app fall back to local token if server is unavailable?
-4. Is a passphrase sufficient, or do we need user accounts?
+1. **Which hosting platform?** → GCP Compute Engine `e2-micro` (ADR-008)
+2. **Rate limiting strategy?** → Not needed for single-user usage
+3. **Should the Electron app fall back to local token?** → Yes, implemented with silent 502/500 fallback
+4. **Is a passphrase sufficient?** → Not needed — proxy is personal, not shared
